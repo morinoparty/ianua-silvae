@@ -1,0 +1,117 @@
+meta:
+  version: PLCN_v3
+  update_url: 'https://raw.githubusercontent.com/morinoparty/ianua-silvae/main/pelican/egg-ianua-silvae.yaml'
+exported_at: '2026-07-28T00:00:00+00:00'
+name: 'Ianua Silvae'
+author: yahiro@morino.party
+uuid: a2570ebe-2929-40ae-9c33-7f35ded91a4f
+description: 'Lightweight Minestom-based fallback lobby for the morino.party network. Serves as the last-resort lobby behind Velocity when every real lobby is down.'
+tags:
+  - minecraft
+features:
+  - java_version
+  - pid_limit
+docker_images:
+  'Java 25 (Temurin)': 'ghcr.io/morinoparty/fruits:java_25-temurin'
+  'Java 25 (GraalVM)': 'ghcr.io/morinoparty/fruits:java_25-graalvm_jdk'
+  'Java 25 (Azul Zulu)': 'ghcr.io/morinoparty/fruits:java_25-azul_zulu'
+  'Java 25 (OpenJ9)': 'ghcr.io/morinoparty/fruits:java_25-open_j9'
+file_denylist: {  }
+startup_commands:
+  # The jar keeps its versioned release name (ianua-silvae-<version>.jar),
+  # so the startup command matches it with a wildcard. The install script
+  # and the deploy workflow guarantee only one jar exists at a time.
+  Default: 'java -Xms128M -XX:MaxRAMPercentage=95.0 -XX:+UseZGC -XX:+AlwaysPreTouch -XX:+PerfDisableSharedMem -jar {{SERVER_JARFILE}}'
+  G1: 'java -Xms128M -XX:MaxRAMPercentage=95.0 -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+PerfDisableSharedMem -jar {{SERVER_JARFILE}}'
+config:
+  files:
+    config/config.json:
+      parser: json
+      find:
+        bind: 0.0.0.0
+        port: '{{server.allocations.default.port}}'
+  startup:
+    done: 'Ianua Silvae is listening on'
+  logs: {  }
+  # The server registers no console commands, so stop with SIGINT.
+  stop: '^C'
+scripts:
+  installation:
+    script: |-
+      #!/bin/ash
+      # Ianua Silvae Installation Script
+      #
+      # Server Files: /mnt/server
+      GITHUB_REPO="morinoparty/ianua-silvae"
+
+      cd /mnt/server
+
+      if [ -z "${VERSION}" ] || [ "${VERSION}" = "latest" ]; then
+          API_URL="https://api.github.com/repos/${GITHUB_REPO}/releases/latest"
+      else
+          API_URL="https://api.github.com/repos/${GITHUB_REPO}/releases/tags/${VERSION}"
+      fi
+
+      echo "Resolving release from ${API_URL}"
+      DOWNLOAD_URL=$(curl -fsSL "${API_URL}" | jq -r '.assets[] | select(.name | test("^ianua-silvae-.*\\.jar$")) | .browser_download_url' | head -1)
+
+      if [ -z "${DOWNLOAD_URL}" ]; then
+          echo "Could not find a server jar asset for version '${VERSION}'."
+          exit 1
+      fi
+
+      # Remove previous jars so the wildcard startup command matches exactly one file.
+      rm -f ianua-silvae-*.jar ianua-silvae.jar
+
+      echo "Downloading ${DOWNLOAD_URL}"
+      curl -fsSL -o "$(basename "${DOWNLOAD_URL}")" "${DOWNLOAD_URL}"
+
+      echo "Install complete."
+    container: 'ghcr.io/pelican-eggs/installers:alpine'
+    entrypoint: ash
+variables:
+  -
+    name: Version
+    description: "The release version of Ianua Silvae to install.\r\n\r\nLeave at latest to always get the latest release."
+    env_variable: VERSION
+    default_value: latest
+    user_viewable: true
+    user_editable: true
+    rules:
+      - required
+      - string
+      - 'max:20'
+    sort: 1
+  -
+    name: 'Server Jar File'
+    description: 'The jar the startup command runs. The default wildcard matches the versioned release jar.'
+    env_variable: SERVER_JARFILE
+    default_value: 'ianua-silvae-*.jar'
+    user_viewable: true
+    user_editable: true
+    rules:
+      - required
+      - 'regex:/^([\w\d.*_-]+)(\.jar)$/'
+    sort: 2
+  -
+    name: 'Velocity Forwarding Secret'
+    description: 'Velocity modern forwarding secret. When set, the server only accepts connections forwarded by the proxy. Read directly by the server as an environment variable.'
+    env_variable: IANUA_VELOCITY_SECRET
+    default_value: ''
+    user_viewable: true
+    user_editable: true
+    rules:
+      - nullable
+      - string
+    sort: 3
+  -
+    name: MOTD
+    description: 'The server list description shown to the Velocity proxy and clients.'
+    env_variable: IANUA_MOTD
+    default_value: 'morino.party | fallback lobby'
+    user_viewable: true
+    user_editable: true
+    rules:
+      - nullable
+      - string
+    sort: 4
