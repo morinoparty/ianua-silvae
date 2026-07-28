@@ -58,7 +58,7 @@ Settings are read from `config/config.json` (kotlinx-serialization JSON); most o
 | `motd.description` | `IANUA_MOTD`            | `morino.party \| fallback lobby`| Server list MOTD                               |
 | `motd.maxPlayers`  | —                       | `200`                           | Max player count shown in the server list      |
 
-Environment variables always take precedence over the config file — convenient for containers. See the [Configuration docs](https://ianua-silvae.morino.party/docs/configuration) for details.
+Environment variables always take precedence over the config file — convenient for containers. See the [Configuration docs](https://morinoparty.github.io/ianua-silvae/docs/configuration) for details.
 
 ## 🛰️ Deployment
 
@@ -87,7 +87,7 @@ Set the same forwarding secret on the proxy and in `IANUA_VELOCITY_SECRET`.
 
 ## 📚 Documentation
 
-Docs: https://ianua-silvae.morino.party
+Docs: https://morinoparty.github.io/ianua-silvae
 
 ## 📄 License
 
