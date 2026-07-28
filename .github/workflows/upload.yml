@@ -57,7 +57,7 @@ jobs:
       # Sign the JAR with GitHub Attestations
       - name: Attest JAR artifact
         id: attest
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: './build/libs/${{ env.PROJECT_NAME }}-${{ env.SERVER_VERSION }}.jar'
 
