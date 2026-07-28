@@ -50,6 +50,9 @@ jobs:
 
       - name: Build
         working-directory: docs
+        env:
+          # Remove BASE_PATH once a custom domain is configured for GitHub Pages
+          BASE_PATH: /ianua-silvae
         run: |
           pnpm run build
 
