@@ -75,12 +75,22 @@ sudo systemctl enable --now ianua-silvae
 
 A small heap (`-Xmx512M`) is plenty: the server holds one schematic-based instance and, in normal operation, zero players.
 
-## Automated deployment via Pelican Panel
+## Run on Pelican Panel
 
-If the fallback runs on a [Pelican Panel](https://pelican.dev/) server instead of systemd, the release workflow can deploy it automatically. When a GitHub release is published, the `deploy` job in `.github/workflows/upload.yml` runs `.github/scripts/pelican-deploy.sh`, which uses the panel's client API to:
+If the fallback runs on a [Pelican Panel](https://pelican.dev/) server instead of systemd, import the egg at [`pelican/egg-ianua-silvae.yaml`](https://github.com/morinoparty/ianua-silvae/blob/main/pelican/egg-ianua-silvae.yaml). The egg:
 
-1. Delete any existing `ianua-silvae*.jar` in the server root (stale or versioned copies would otherwise linger next to the new jar).
-2. Upload the freshly built jar as `ianua-silvae.jar` — the stable name the startup command references, regardless of the released version.
+- Downloads the requested (or latest) release jar from GitHub during install.
+- Starts the server with `java -Xms128M ... -jar ianua-silvae-*.jar` — the jar keeps its versioned release name and the wildcard matches it, so no rename is needed on updates. Two startup commands are provided: ZGC (default) and G1.
+- Offers the `ghcr.io/morinoparty/fruits` Java 25 images (Temurin, GraalVM, Azul Zulu, OpenJ9) as selectable docker images.
+- Writes `bind` and the allocated port into `config/config.json`; the Velocity forwarding secret and MOTD are egg variables passed to the server as `IANUA_VELOCITY_SECRET` / `IANUA_MOTD` environment variables.
+- Stops the server with SIGINT (`^C`) since the server registers no console commands.
+
+### Automated deployment
+
+When a GitHub release is published, the `deploy` job in `.github/workflows/upload.yml` runs `.github/scripts/pelican-deploy.sh`, which uses the panel's client API to:
+
+1. Delete any existing `ianua-silvae*.jar` in the server root, so the wildcard startup command matches exactly one file.
+2. Upload the freshly built `ianua-silvae-<version>.jar`.
 3. Send a `restart` power signal to the server.
 
 The job requires three repository secrets:
@@ -90,8 +100,6 @@ The job requires three repository secrets:
 | `PELICAN_PANEL_URL` | Panel base URL, e.g. `https://panel.example.com` |
 | `PELICAN_SERVER_UUID` | UUID of the target server on the panel |
 | `PELICAN_CLIENT_API_KEY` | Client API key (`pacc_...`) with file and power permissions |
-
-The panel server's startup command must launch the fixed file name, e.g. `java -Xms128M -Xmx512M -jar ianua-silvae.jar`. Configuration and the forwarding secret are provided through environment variables as described in [Configuration](/docs/configuration).
 
 ## Operational notes
 

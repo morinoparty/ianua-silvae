@@ -11,9 +11,9 @@
 # Upload source:
 #   ./artifacts/ianua-silvae-<version>.jar
 #
-# Unlike a Bukkit plugin, this is a standalone server jar: the startup
-# command references a fixed file name, so the jar is uploaded to the
-# server root as "ianua-silvae.jar" regardless of version.
+# The jar keeps its versioned release name (ianua-silvae-<version>.jar);
+# the Pelican egg's startup command matches it with a wildcard
+# (ianua-silvae-*.jar), so old jars must be deleted before uploading.
 set -euo pipefail
 
 api() {
@@ -26,11 +26,8 @@ api() {
 src="./artifacts/ianua-silvae-${SERVER_VERSION}.jar"
 [ -f "$src" ] || { echo "Jar not found: $src" >&2; exit 1; }
 
-# Rename to the stable file name the startup command expects.
-cp "$src" ./artifacts/ianua-silvae.jar
-
-# Delete any previous server jar first so stale or versioned copies
-# cannot linger next to the new one. Only ianua-silvae jars are touched.
+# Delete any previous server jar first so the wildcard startup command
+# matches exactly one file. Only ianua-silvae jars are touched.
 pattern='^ianua-silvae([-_].*)?\.jar$'
 old=$(api GET "/files/list?directory=%2F" \
   | jq -r --arg re "$pattern" '.data[] | select(.attributes.is_file) | .attributes.name | select(test($re))')
@@ -45,8 +42,8 @@ else
 fi
 
 upload_url=$(api GET "/files/upload" | jq -r '.attributes.url')
-curl -fsS -X POST "$upload_url&directory=%2F" -F "files=@./artifacts/ianua-silvae.jar"
-echo "Uploaded ianua-silvae.jar (version ${SERVER_VERSION})."
+curl -fsS -X POST "$upload_url&directory=%2F" -F "files=@$src"
+echo "Uploaded $(basename "$src")."
 
 api POST "/power" -H "Content-Type: application/json" -d '{"signal":"restart"}'
 echo "Restart signal sent."
