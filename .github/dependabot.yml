@@ -31,3 +31,7 @@ updates:
       npm:
         patterns:
           - "*"
+    ignore:
+      # TypeScript 7 does not provide the compiler API Next.js requires
+      - dependency-name: "typescript"
+        versions: [">=7"]
