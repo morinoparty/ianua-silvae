@@ -4,7 +4,7 @@ minestom = "2026.07.22-26.2"
 schem = "2.0.1"
 serialization = "1.11.0"
 logback = "1.5.37"
-junit = "6.1.1"
+junit = "6.1.2"
 ktlint = "14.2.0"
 shadow = "9.6.0"
 
