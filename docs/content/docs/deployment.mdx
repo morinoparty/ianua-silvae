@@ -75,6 +75,24 @@ sudo systemctl enable --now ianua-silvae
 
 A small heap (`-Xmx512M`) is plenty: the server holds one schematic-based instance and, in normal operation, zero players.
 
+## Automated deployment via Pelican Panel
+
+If the fallback runs on a [Pelican Panel](https://pelican.dev/) server instead of systemd, the release workflow can deploy it automatically. When a GitHub release is published, the `deploy` job in `.github/workflows/upload.yml` runs `.github/scripts/pelican-deploy.sh`, which uses the panel's client API to:
+
+1. Delete any existing `ianua-silvae*.jar` in the server root (stale or versioned copies would otherwise linger next to the new jar).
+2. Upload the freshly built jar as `ianua-silvae.jar` — the stable name the startup command references, regardless of the released version.
+3. Send a `restart` power signal to the server.
+
+The job requires three repository secrets:
+
+| Secret | Description |
+| --- | --- |
+| `PELICAN_PANEL_URL` | Panel base URL, e.g. `https://panel.example.com` |
+| `PELICAN_SERVER_UUID` | UUID of the target server on the panel |
+| `PELICAN_CLIENT_API_KEY` | Client API key (`pacc_...`) with file and power permissions |
+
+The panel server's startup command must launch the fixed file name, e.g. `java -Xms128M -Xmx512M -jar ianua-silvae.jar`. Configuration and the forwarding secret are provided through environment variables as described in [Configuration](/docs/configuration).
+
 ## Operational notes
 
 - **Keep it boring.** The fallback should have no scheduled restarts, no plugins to update, and no world to back up. Its only job is to be reachable when nothing else is.
