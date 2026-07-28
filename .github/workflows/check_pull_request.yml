@@ -1,0 +1,51 @@
+name: Check pull request
+
+on: [ pull_request ]
+
+
+permissions:
+  statuses: write
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Branch protection requires the exact status check context "Check pull request",
+      # so we publish the commit status explicitly instead of relying on the job name.
+      - name: Set commit status as pending
+        uses: myrotvorets/set-commit-status-action@master
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          status: pending
+          context: Check pull request
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+
+      # Gradle cache setup (setup-gradle is more efficient than manual caching)
+      - uses: gradle/actions/setup-gradle@8379f6a1328ee0e06e2bb424dadb7b159856a326 # v4.4.0
+        with:
+          cache-read-only: true  # Read-only cache on pull requests
+
+      - name: Change wrapper permissions
+        run: chmod +x ./gradlew
+
+      - name: Run ktlint
+        run: ./gradlew ktlintCheck
+
+      - name: Build with Gradle
+        run: ./gradlew build -x test
+
+      - name: Set final commit status
+        uses: myrotvorets/set-commit-status-action@master
+        if: always()
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          status: ${{ job.status }}
+          context: Check pull request

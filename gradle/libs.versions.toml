@@ -1,0 +1,26 @@
+[versions]
+kotlin = "2.4.0"
+minestom = "2026.07.22-26.2"
+schem = "2.0.1"
+serialization = "1.11.0"
+logback = "1.5.37"
+junit = "6.1.1"
+ktlint = "14.2.0"
+shadow = "9.6.0"
+
+[libraries]
+minestom = { group = "net.minestom", name = "minestom", version.ref = "minestom" }
+schem = { group = "dev.hollowcube", name = "schem", version.ref = "schem" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
+logback-classic = { group = "ch.qos.logback", name = "logback-classic", version.ref = "logback" }
+junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.ref = "junit" }
+junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform-launcher" }
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint" }
+shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
+
+[bundles]
+junit = ["junit-jupiter", "junit-platform-launcher"]

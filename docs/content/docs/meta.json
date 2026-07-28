@@ -1,0 +1,11 @@
+{
+	"pages": [
+		"---Introduction---",
+		"index",
+		"getting-started",
+		"---Guides---",
+		"configuration",
+		"deployment",
+		"architecture"
+	]
+}

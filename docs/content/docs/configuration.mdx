@@ -1,0 +1,77 @@
+---
+title: Configuration
+description: config.json fields and environment-variable overrides
+---
+
+Configuration is read from `config/config.json` (relative to the working directory), serialized with kotlinx-serialization. A default file is generated on first start. Most options can also be set through an environment variable, which **always takes precedence** over the file — convenient for containers and systemd drop-ins.
+
+## Options
+
+| Config key         | Environment variable    | Default                          | Description                                          |
+| ------------------ | ----------------------- | -------------------------------- | ---------------------------------------------------- |
+| `bind`             | `IANUA_BIND`            | `0.0.0.0`                        | Address the server binds to                          |
+| `port`             | `IANUA_PORT`            | `25565`                          | Port to listen on                                    |
+| `onlineMode`       | `IANUA_ONLINE_MODE`     | `false`                          | Mojang authentication; ignored when `velocitySecret` is set |
+| `velocitySecret`   | `IANUA_VELOCITY_SECRET` | *(null)*                         | Velocity modern forwarding secret                    |
+| `schematicPath`    | `IANUA_SCHEMATIC_PATH`  | `schematics/lobby.schem`         | Path to the schematic used as the world              |
+| `schematicOrigin`  | —                       | `{0, 64, 0}`                     | World position the schematic is pasted at            |
+| `spawn`            | —                       | `{0.5, 65, 0.5}`                 | Player spawn position                                |
+| `voidY`            | —                       | `-32`                            | Y level below which players are teleported to spawn  |
+| `motd.description` | `IANUA_MOTD`            | `morino.party \| fallback lobby` | Server list MOTD text                                |
+| `motd.maxPlayers`  | —                       | `200`                            | Max player count shown in the server list            |
+
+Options marked "—" can only be set in the config file. Invalid numeric or boolean environment values are ignored and fall back to the file value.
+
+## Example config.json
+
+```json
+{
+	"bind": "127.0.0.1",
+	"port": 25580,
+	"onlineMode": false,
+	"velocitySecret": "change-me",
+	"schematicPath": "schematics/lobby.schem",
+	"schematicOrigin": { "x": 0.0, "y": 64.0, "z": 0.0, "yaw": 0.0, "pitch": 0.0 },
+	"spawn": { "x": 0.5, "y": 65.0, "z": 0.5, "yaw": 180.0, "pitch": 0.0 },
+	"voidY": -32.0,
+	"motd": { "description": "morino.party | fallback lobby", "maxPlayers": 200 }
+}
+```
+
+## Field notes
+
+### bind and port
+
+When the server sits behind Velocity on the same host, bind to `127.0.0.1` so only the proxy can reach it. Use `0.0.0.0` only when proxy and lobby run on different machines, and firewall the port to the proxy's address.
+
+### onlineMode
+
+Enables Mojang online-mode authentication when no Velocity secret is configured. It must stay `false` behind a Velocity proxy, and it is ignored entirely when `velocitySecret` is set. Without either, the server runs unauthenticated (offline mode) — keep it behind the proxy firewall in that case.
+
+### velocitySecret
+
+The shared secret for [Velocity modern forwarding](https://docs.papermc.io/velocity/configuration). It must match `forwarding.secret` on the proxy. Prefer the `IANUA_VELOCITY_SECRET` environment variable over the config file so the secret stays out of version control and backups.
+
+### schematicPath
+
+Path (absolute or relative to the working directory) of the Sponge-format schematic that becomes the world. The schematic is pasted into a void instance at `schematicOrigin` at startup — see [Architecture](/docs/architecture). If the file is missing, the server starts with an empty void world and logs a warning.
+
+### spawn
+
+An object with `x`, `y`, `z` and optional `yaw`/`pitch`. Coordinates are in the instance's coordinate space, i.e. relative to where the schematic was pasted. Pick a position on solid ground inside the schematic; this is also where players are teleported back to when they fall below `voidY`.
+
+### motd
+
+`motd.description` is the message shown in the server list, and `motd.maxPlayers` the advertised player limit. Players normally never ping this server directly (they connect through Velocity), but a distinct MOTD helps identify the fallback in monitoring.
+
+## Environment-only setups
+
+The core connection settings can come entirely from the environment. A default `config/config.json` is still written on first start and supplies everything else:
+
+```sh
+IANUA_BIND=0.0.0.0 \
+IANUA_PORT=25580 \
+IANUA_VELOCITY_SECRET="$(cat /run/secrets/velocity)" \
+IANUA_SCHEMATIC_PATH=/data/lobby.schem \
+java -jar ianua-silvae-<version>.jar
+```

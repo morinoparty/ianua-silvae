@@ -1,0 +1,82 @@
+---
+title: Deployment
+description: Running Ianua Silvae behind Velocity and vlobby
+---
+
+Ianua Silvae is designed to run permanently alongside your network, receiving traffic only when every real lobby is down. This page covers wiring it into Velocity and keeping it running with systemd.
+
+## Register the server in Velocity
+
+Add the server to `velocity.toml` and enable modern forwarding network-wide:
+
+```toml
+[servers]
+lobby-1 = "127.0.0.1:25566"
+lobby-2 = "127.0.0.1:25567"
+ianua-silvae = "127.0.0.1:25580"
+
+# ...
+
+player-info-forwarding-mode = "modern"
+```
+
+The `forwarding.secret` file on the proxy must contain the same value as `velocitySecret` / `IANUA_VELOCITY_SECRET` on Ianua Silvae.
+
+## Configure vlobby
+
+Register Ianua Silvae **last** in vlobby's lobby list. With the `FIRST_AVAILABLE` strategy, vlobby connects players to the first reachable lobby in order — so the fallback only receives players when everything above it is down:
+
+```yaml
+strategy: FIRST_AVAILABLE
+lobbies:
+  - lobby-1
+  - lobby-2
+  - ianua-silvae   # fallback: keep this last
+```
+
+:::warning[Ordering matters]
+If Ianua Silvae is listed before a real lobby, players will be routed to the fallback even while the main lobby is healthy. Always keep it at the end of the list.
+:::
+
+## Run as a systemd service
+
+Ianua Silvae is a single jar, so a plain systemd unit is enough — no container required. Copy the release jar (e.g. `ianua-silvae-1.0.0.jar`) to `/opt/ianua-silvae/ianua-silvae.jar`:
+
+```ini
+[Unit]
+Description=Ianua Silvae fallback lobby
+After=network.target
+
+[Service]
+User=minecraft
+WorkingDirectory=/opt/ianua-silvae
+ExecStart=/usr/bin/java -Xms128M -Xmx512M -jar ianua-silvae.jar
+Environment=IANUA_BIND=127.0.0.1
+Environment=IANUA_PORT=25580
+EnvironmentFile=/etc/ianua-silvae/secret.env
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+`/etc/ianua-silvae/secret.env` holds the forwarding secret outside the unit file:
+
+```sh
+IANUA_VELOCITY_SECRET=change-me
+```
+
+Enable and start:
+
+```sh
+sudo systemctl enable --now ianua-silvae
+```
+
+A small heap (`-Xmx512M`) is plenty: the server holds one schematic-based instance and, in normal operation, zero players.
+
+## Operational notes
+
+- **Keep it boring.** The fallback should have no scheduled restarts, no plugins to update, and no world to back up. Its only job is to be reachable when nothing else is.
+- **Monitor reachability, not load.** Alert if the server stops answering pings; player count on it is itself a signal that the main lobby is down.
+- **Test the failure path.** After any proxy change, stop the main lobby once and confirm players land in Ianua Silvae instead of being disconnected.

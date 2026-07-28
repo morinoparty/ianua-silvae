@@ -1,0 +1,82 @@
+[
+    {
+      "name": "bug",
+      "color": "#FC2C2B",
+      "description": "Type: bug fix"
+    },
+    {
+      "name": "requirement",
+      "color": "#EF2816",
+      "description": "Type: implementation required"
+    },
+    {
+      "name": "test",
+      "color": "#23E523",
+      "description": "Type: tests"
+    },
+    {
+        "name": "enhancement",
+        "color": "#375E97",
+        "description": "Type: feature improvement"
+    },
+    {
+      "name": "document",
+      "color": "#3B62BD",
+      "description": "Type: documentation change"
+    },
+    {
+      "name": "chore",
+      "color": "#E2601E",
+      "description": "Type: tooling or library change"
+    },
+    {
+      "name": "refactor",
+      "color": "#AFD38D",
+      "description": "Type: refactoring"
+    },
+    {
+      "name": "duplicate",
+      "color": "#CCCCCC",
+      "description": "Type: duplicate"
+    },
+    {
+      "name": "wontfix",
+      "color": "#CCCCCC",
+      "description": "Type: will not be addressed"
+    },
+    {
+      "name": "dependencies",
+      "color": "#5319E7",
+      "description": "Type: dependency update"
+    },
+    {
+      "name": "not-reviewed",
+      "color": "#F9C1CF",
+      "description": "Not reviewed yet"
+    },
+    {
+      "name": "priority: critical",
+      "color": "#B60205",
+      "description": "Priority: critical (e.g. security issues)"
+    },
+    {
+      "name": "priority: high",
+      "color": "#D93F0B",
+      "description": "Priority: high"
+    },
+    {
+      "name": "priority: medium",
+      "color": "#FBCA04",
+      "description": "Priority: medium"
+    },
+    {
+      "name": "priority: low",
+      "color": "#0E8A16",
+      "description": "Priority: low"
+    },
+    {
+      "name": "security",
+      "color": "#EE0701",
+      "description": "Type: security related"
+    }
+]

@@ -1,0 +1,70 @@
+---
+title: Getting Started
+description: Build Ianua Silvae and run it with your own schematic
+---
+
+## Requirements
+
+- **JDK 25** or newer
+- A schematic file of your lobby (e.g. `lobby.schem`, Sponge schematic format)
+
+There is no Bukkit/Paper server to install — Ianua Silvae *is* the server. The build produces a single runnable jar.
+
+## Build
+
+Clone the repository and build the shadowed jar:
+
+```sh
+git clone https://github.com/morinoparty/ianua-silvae.git
+cd ianua-silvae
+./gradlew shadowJar
+```
+
+The runnable jar is written to `build/libs/ianua-silvae-<version>.jar` (the shadow jar carries no classifier; the thin jar is the one ending in `-plain.jar`).
+
+## Prepare the schematic
+
+Copy your lobby schematic into the working directory. By default the server looks for `schematics/lobby.schem`:
+
+```
+.
+├── ianua-silvae-<version>.jar
+└── schematics/
+    └── lobby.schem
+```
+
+Export the schematic from your main lobby with WorldEdit (`//copy`, then `//schem save lobby`) so the fallback looks familiar to players. The path can be changed with the `schematicPath` config option or the `IANUA_SCHEMATIC_PATH` environment variable.
+
+## Run
+
+```sh
+java -jar ianua-silvae-<version>.jar
+```
+
+On first start a default config is generated at `config/config.json`. Stop the server, fill in at least the Velocity forwarding secret, and start it again:
+
+```json
+{
+	"bind": "0.0.0.0",
+	"port": 25565,
+	"onlineMode": false,
+	"velocitySecret": "change-me",
+	"schematicPath": "schematics/lobby.schem",
+	"schematicOrigin": { "x": 0.0, "y": 64.0, "z": 0.0, "yaw": 0.0, "pitch": 0.0 },
+	"spawn": { "x": 0.5, "y": 65.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0 },
+	"voidY": -32.0,
+	"motd": { "description": "morino.party | fallback lobby", "maxPlayers": 200 }
+}
+```
+
+:::warning[Velocity secret required]
+When running behind Velocity with modern forwarding, the server rejects connections unless `velocitySecret` (or the `IANUA_VELOCITY_SECRET` environment variable) matches the proxy's `forwarding.secret`. Never expose the port directly to the internet.
+:::
+
+## Verify
+
+1. Start the server and check the log for the schematic being loaded and the bind address.
+2. Add the server to your Velocity configuration (see [Deployment](/docs/deployment)).
+3. Stop the main lobby and reconnect — you should land at the configured spawn of Ianua Silvae in adventure mode.
+
+Next, read [Configuration](/docs/configuration) for every option and the available environment-variable overrides.

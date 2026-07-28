@@ -1,0 +1,23 @@
+# Gradle
+.gradle/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+out/
+bin/
+
+# Runtime data (generated when the server runs)
+/config/
+/schematics/
+/run/
+
+# Logs and OS noise
+*.log
+hs_err_pid*
+.DS_Store
+*~
