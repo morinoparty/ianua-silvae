@@ -1,6 +1,6 @@
 [versions]
 kotlin = "2.4.10"
-minestom = "2026.08.07-26.2"
+minestom = "2026.08.16-26.2"
 schem = "2.0.1"
 serialization = "1.11.0"
 logback = "1.6.3"
