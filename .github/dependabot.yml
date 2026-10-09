@@ -1,5 +1,5 @@
 # Dependabot configuration.
-# Keeps Gradle dependencies, GitHub Actions, and the docs site (npm) up to date.
+# Keeps Gradle dependencies, GitHub Actions, Dockerfile base images, and the docs site (npm) up to date.
 # Updates are grouped into one PR per ecosystem to avoid PR floods.
 # See: https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
 
@@ -20,6 +20,15 @@ updates:
       interval: "weekly"
     groups:
       github-actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      docker:
         patterns:
           - "*"
 

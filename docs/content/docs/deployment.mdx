@@ -3,7 +3,7 @@ title: Deployment
 description: Running Ianua Silvae behind Velocity and vlobby
 ---
 
-Ianua Silvae is designed to run permanently alongside your network, receiving traffic only when every real lobby is down. This page covers wiring it into Velocity and keeping it running with systemd.
+Ianua Silvae is designed to run permanently alongside your network, receiving traffic only when every real lobby is down. This page covers wiring it into Velocity and keeping it running with systemd, Pelican Panel, or a container (Docker / Kubernetes).
 
 ## Register the server in Velocity
 
@@ -40,7 +40,7 @@ If Ianua Silvae is listed before a real lobby, players will be routed to the fal
 
 ## Run as a systemd service
 
-Ianua Silvae is a single jar, so a plain systemd unit is enough — no container required. Copy the release jar (e.g. `ianua-silvae-1.0.0.jar`) to `/opt/ianua-silvae/ianua-silvae.jar`:
+Ianua Silvae is a single jar, so a plain systemd unit is enough — no container required (a container image is available too, see [Run as a container](#run-as-a-container)). Copy the release jar (e.g. `ianua-silvae-1.0.0.jar`) to `/opt/ianua-silvae/ianua-silvae.jar`:
 
 ```ini
 [Unit]
@@ -100,6 +100,173 @@ The job requires three repository secrets:
 | `PELICAN_PANEL_URL` | Panel base URL, e.g. `https://panel.example.com` |
 | `PELICAN_SERVER_UUID` | UUID of the target server on the panel |
 | `PELICAN_CLIENT_API_KEY` | Client API key (`pacc_...`) with file and power permissions |
+
+## Run as a container
+
+Every push to `main` and every `v*` tag publishes a multi-arch (`linux/amd64`, `linux/arm64`) image to the GitHub Container Registry:
+
+| Tag | Source |
+| --- | --- |
+| `ghcr.io/morinoparty/ianua-silvae:main` | Latest commit on `main` |
+| `ghcr.io/morinoparty/ianua-silvae:sha-<short>` | A specific commit (immutable; prefer this for deployments) |
+| `ghcr.io/morinoparty/ianua-silvae:1.2.3` / `:1.2` | Release tag `v1.2.3` |
+
+Images carry SLSA build provenance; verify with `gh attestation verify oci://ghcr.io/morinoparty/ianua-silvae:<tag> --owner morinoparty`.
+
+### Image layout
+
+| Item | Value |
+| --- | --- |
+| Working directory | `/server` (config is read from `/server/config/config.json`) |
+| Jar | `/opt/ianua-silvae/ianua-silvae.jar` |
+| Entrypoint | `java -jar /opt/ianua-silvae/ianua-silvae.jar` |
+| User | `10001:10001` (numeric, non-root) |
+| Port | `25565/tcp` |
+| JVM flags | Pass through `JAVA_TOOL_OPTIONS` (there is no `-Xmx` baked in) |
+
+Logs go to stdout only; the server writes no log files. The only file it ever writes is `config/config.json`, and **only when it is missing**. If you mount a `config.json` read-only, the container runs with a fully read-only root filesystem — the JVM just needs a writable `/tmp`.
+
+### docker run
+
+```sh
+docker run -d --name ianua-silvae \
+  --read-only --tmpfs /tmp \
+  --user 10001:10001 --cap-drop ALL --security-opt no-new-privileges \
+  -v "$PWD/config:/server/config:ro" \
+  -v "$PWD/schematics:/schematics:ro" \
+  -e IANUA_ONLINE_MODE=true \
+  -e JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:+UseSerialGC -XX:+PerfDisableSharedMem" \
+  -p 25565:25565 \
+  ghcr.io/morinoparty/ianua-silvae:main
+```
+
+with `config/config.json` pointing at the mounted schematic:
+
+```json
+{
+  "bind": "0.0.0.0",
+  "port": 25565,
+  "onlineMode": true,
+  "velocitySecret": null,
+  "schematicPath": "/schematics/lobby.schem",
+  "schematicOrigin": { "x": 0, "y": 64, "z": 0, "yaw": 0, "pitch": 0 },
+  "spawn": { "x": 0.5, "y": 65, "z": 0.5, "yaw": 0, "pitch": 0 },
+  "voidY": 0,
+  "motd": { "description": "morino.party | fallback lobby", "maxPlayers": 20 }
+}
+```
+
+Without a config mount (and without `--read-only`), the server generates a default `config.json` inside the container, which is fine for a quick try but lost with the container.
+
+### Environment variables
+
+The `IANUA_*` overrides from [Configuration](/docs/configuration) work as usual and take precedence over the file:
+
+| Variable | Overrides |
+| --- | --- |
+| `IANUA_BIND` | `bind` |
+| `IANUA_PORT` | `port` |
+| `IANUA_ONLINE_MODE` | `onlineMode` |
+| `IANUA_VELOCITY_SECRET` | `velocitySecret` |
+| `IANUA_SCHEMATIC_PATH` | `schematicPath` |
+| `IANUA_MOTD` | `motd.description` |
+
+`schematicOrigin`, `spawn`, `voidY` and `motd.maxPlayers` can only be set in `config.json`.
+
+### Kubernetes
+
+Ship `config.json` in a ConfigMap mounted at `/server/config`, the schematic from any read-only volume, and an `emptyDir` for `/tmp`:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ianua-silvae
+data:
+  config.json: |
+    {"bind":"0.0.0.0","port":25565,"onlineMode":true,"velocitySecret":null,
+     "schematicPath":"/schematics/lobby.schem",
+     "schematicOrigin":{"x":0,"y":64,"z":0,"yaw":0,"pitch":0},
+     "spawn":{"x":0.5,"y":65,"z":0.5,"yaw":0,"pitch":0},
+     "voidY":0,"motd":{"description":"morino.party | fallback lobby","maxPlayers":20}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ianua-silvae
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ianua-silvae
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ianua-silvae
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 15
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: ianua-silvae
+          image: ghcr.io/morinoparty/ianua-silvae:sha-<short>
+          env:
+            - name: IANUA_ONLINE_MODE
+              value: "true"
+            - name: JAVA_TOOL_OPTIONS
+              value: "-XX:MaxRAMPercentage=75 -XX:+UseSerialGC -XX:+PerfDisableSharedMem"
+          ports:
+            - name: minecraft
+              containerPort: 25565
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          startupProbe:
+            tcpSocket:
+              port: minecraft
+            periodSeconds: 2
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket:
+              port: minecraft
+          resources:
+            requests:
+              cpu: 100m
+              memory: 384Mi
+            limits:
+              memory: 768Mi
+          volumeMounts:
+            - name: config
+              mountPath: /server/config
+              readOnly: true
+            - name: schematics
+              mountPath: /schematics
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: config
+          configMap:
+            name: ianua-silvae
+        - name: schematics
+          persistentVolumeClaim:
+            claimName: schematics
+            readOnly: true
+        - name: tmp
+          emptyDir: {}
+```
+
+`-XX:+PerfDisableSharedMem` stops the JVM from writing `hsperfdata` files, and `-XX:MaxRAMPercentage` sizes the heap from the container memory limit. A single schematic world with no players uses roughly 160 MiB, so a 768 MiB limit leaves ample headroom.
 
 ## Operational notes
 

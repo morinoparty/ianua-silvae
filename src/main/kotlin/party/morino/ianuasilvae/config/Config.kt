@@ -60,8 +60,28 @@ data class LobbyConfig(
     val spawn: Position = Position(0.5, 65.0, 0.5, 0f, 0f),
     /** Players falling below this Y level are teleported back to spawn. */
     val voidY: Double = -32.0,
+    /**
+     * When non-null, [voidY] is ignored and the void level is derived once the
+     * schematic has been read: `min(lowest pasted block Y, spawn.y) - voidDepth`
+     * (see [resolveVoidY]). The lowest block accounts for the schematic's own
+     * offset, which whoever writes the config usually does not know.
+     */
+    val voidDepth: Double? = null,
     val motd: MotdConfig = MotdConfig(),
 )
+
+/**
+ * Returns the Y level below which players are teleported back to spawn.
+ *
+ * Without [LobbyConfig.voidDepth] this is the fixed [LobbyConfig.voidY]. With it,
+ * the level sits `voidDepth` blocks below the lower of [schematicBottomY] (the Y
+ * of the lowest pasted block, or `null` when no schematic was pasted) and the
+ * spawn, so neither the build nor the spawn can end up below the void level.
+ */
+fun LobbyConfig.resolveVoidY(schematicBottomY: Double?): Double {
+    val depth = voidDepth ?: return voidY
+    return minOf(schematicBottomY ?: spawn.y, spawn.y) - depth
+}
 
 /**
  * Loads [LobbyConfig] from disk, creating the file with defaults on first run,

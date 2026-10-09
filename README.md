@@ -50,6 +50,12 @@ Release artifacts are signed with GitHub Attestations, so their SLSA provenance 
 java -jar build/libs/ianua-silvae-<version>.jar
 ```
 
+Or run the container image (see the [deployment docs](https://morinoparty.github.io/ianua-silvae/docs/deployment#run-as-a-container) for read-only / Kubernetes setups):
+
+```bash
+docker run --rm -p 25565:25565 ghcr.io/morinoparty/ianua-silvae:main
+```
+
 A default `config/config.json` is generated on first start. Every connection setting can be overridden with environment variables (`IANUA_BIND`, `IANUA_PORT`, `IANUA_VELOCITY_SECRET`, `IANUA_SCHEMATIC_PATH`, `IANUA_MOTD`, ...) — see the [configuration docs](https://morinoparty.github.io/ianua-silvae/docs/configuration).
 
 When deploying, register Ianua Silvae **last** in vlobby's lobby list so it only receives players when every real lobby is down.

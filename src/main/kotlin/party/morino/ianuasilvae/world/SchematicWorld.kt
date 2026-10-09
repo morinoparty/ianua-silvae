@@ -15,6 +15,15 @@ import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
 
 /**
+ * The lobby instance together with the Y of the lowest pasted block
+ * (`null` when no schematic was pasted).
+ */
+data class LobbyWorld(
+    val instance: InstanceContainer,
+    val schematicBottomY: Double?,
+)
+
+/**
  * Creates the void lobby instance and pastes the configured schematic into it.
  */
 object SchematicWorld {
@@ -24,22 +33,22 @@ object SchematicWorld {
      * Creates a void [InstanceContainer] with lighting-capable chunks and
      * pastes the schematic from [config] at the configured origin.
      */
-    fun create(config: LobbyConfig): InstanceContainer {
+    fun create(config: LobbyConfig): LobbyWorld {
         val instance = MinecraftServer.getInstanceManager().createInstanceContainer()
         // Void world: no generator, only vanilla-style lighting.
         instance.setChunkSupplier(::LightingChunk)
-        pasteSchematic(instance, config)
-        return instance
+        return LobbyWorld(instance, pasteSchematic(instance, config))
     }
 
+    /** Pastes the schematic and returns the Y of its lowest block, or `null` if nothing was pasted. */
     private fun pasteSchematic(
         instance: InstanceContainer,
         config: LobbyConfig,
-    ) {
+    ): Double? {
         val path = Path.of(config.schematicPath)
         if (!Files.exists(path)) {
             logger.warn("Schematic not found at {}. The lobby stays an empty void world.", path.toAbsolutePath())
-            return
+            return null
         }
         val schematic = SchematicReader.detecting().read(Files.readAllBytes(path))
         val origin = config.schematicOrigin.toPos()
@@ -59,10 +68,23 @@ object SchematicWorld {
             )
         preloadChunks(instance, corners)
 
+        // Blocks land at origin + offset + (x, y, z), so the lowest one is at shifted.y.
+        val bottomY = shifted.y()
+        val minY = instance.cachedDimensionType.minY()
+        if (bottomY < minY) {
+            logger.warn(
+                "Schematic {} reaches down to y={} but the dimension starts at y={}; blocks below are dropped",
+                path.fileName,
+                bottomY,
+                minY,
+            )
+        }
+
         schematic.createBatch().apply(instance, origin) {
             LightingChunk.relight(instance, instance.chunks)
             logger.info("Schematic {} pasted at {}", path.fileName, origin)
         }
+        return bottomY
     }
 
     private fun preloadChunks(
