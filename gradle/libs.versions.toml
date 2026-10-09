@@ -1,6 +1,9 @@
 [versions]
 kotlin = "2.4.20"
-minestom = "2026.10.05-26.2"
+# Minecraft 26.3 (protocol 777). Minestom has no 26.3 release yet, so this pins a timestamped
+# build of the 26_3 branch from the Maven Central snapshot repository. Switch back to a release
+# (e.g. "YYYY.MM.DD-26.3") once one is published.
+minestom = "26_3-20261007.224755-10"
 schem = "2.0.1"
 serialization = "1.11.0"
 logback = "1.6.5"

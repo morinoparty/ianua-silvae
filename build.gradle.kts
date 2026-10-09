@@ -14,6 +14,13 @@ group = "party.morino"
 
 repositories {
     mavenCentral()
+    // Minestom 26.3 is only available as a snapshot for now (see gradle/libs.versions.toml).
+    maven("https://central.sonatype.com/repository/maven-snapshots/") {
+        mavenContent {
+            snapshotsOnly()
+            includeGroup("net.minestom")
+        }
+    }
 }
 
 dependencies {
