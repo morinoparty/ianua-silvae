@@ -51,17 +51,28 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build -x test
 
-      # Rename the shadow jar to a stable release file name.
+      # Ensure the shadow jar has the stable release file name.
       # The shadow jar is unclassified; the thin jar carries the "plain" classifier.
+      # It is usually already named <rootProject.name>-<version>.jar, and `mv` onto
+      # the same path fails, so only rename when the paths differ.
       - name: Rename artifact
         run: |
-          jar_file=$(find ./build/libs -name "*.jar" ! -name "*-plain.jar" | head -1)
-          mv "$jar_file" ./build/libs/${{ env.PROJECT_NAME }}-${{ env.SERVER_VERSION }}.jar
+          target="./build/libs/${{ env.PROJECT_NAME }}-${{ env.SERVER_VERSION }}.jar"
+          jar_file=$(find ./build/libs -maxdepth 1 -name "*.jar" ! -name "*-plain.jar" | head -n 1)
+          if [ -z "$jar_file" ]; then
+            echo "::error::No shadow jar found in build/libs" >&2
+            ls -la ./build/libs >&2 || true
+            exit 1
+          fi
+          if [ "$(realpath "$jar_file")" != "$(realpath -m "$target")" ]; then
+            mv "$jar_file" "$target"
+          fi
+          ls -la ./build/libs
 
       # Sign the JAR with GitHub Attestations
       - name: Attest JAR artifact
         id: attest
-        uses: actions/attest-build-provenance@v4
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: './build/libs/${{ env.PROJECT_NAME }}-${{ env.SERVER_VERSION }}.jar'
 

@@ -1,0 +1,19 @@
+# Only the Gradle wrapper, build scripts and sources are needed in the build context.
+.git/
+.github/
+.agent/
+.gradle/
+.idea/
+.vscode/
+build/
+out/
+bin/
+docs/
+pelican/
+config/
+schematics/
+run/
+*.log
+.env
+Dockerfile
+.dockerignore
