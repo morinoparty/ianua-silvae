@@ -16,6 +16,7 @@ import net.minestom.server.ping.Status
 import org.slf4j.LoggerFactory
 import party.morino.ianuasilvae.config.ConfigLoader
 import party.morino.ianuasilvae.config.LobbyConfig
+import party.morino.ianuasilvae.config.resolveVoidY
 import party.morino.ianuasilvae.config.toPos
 import party.morino.ianuasilvae.world.SchematicWorld
 import java.nio.file.Path
@@ -44,8 +45,10 @@ fun main() {
             }
         }
 
-    val instance = SchematicWorld.create(config)
-    registerListeners(config, instance)
+    val world = SchematicWorld.create(config)
+    val voidY = config.resolveVoidY(world.schematicBottomY)
+    logger.info("Void level is y={}", voidY)
+    registerListeners(config, world.instance, voidY)
 
     server.start(config.bind, config.port)
     logger.info("Ianua Silvae is listening on {}:{}", config.bind, config.port)
@@ -54,6 +57,7 @@ fun main() {
 private fun registerListeners(
     config: LobbyConfig,
     instance: Instance,
+    voidY: Double,
 ) {
     val events = MinecraftServer.getGlobalEventHandler()
     val spawn = config.spawn.toPos()
@@ -82,7 +86,7 @@ private fun registerListeners(
 
     // Teleport players back to spawn when they fall into the void.
     events.addListener(PlayerMoveEvent::class.java) { event ->
-        if (event.newPosition.y() < config.voidY) {
+        if (event.newPosition.y() < voidY) {
             event.player.teleport(spawn)
         }
     }

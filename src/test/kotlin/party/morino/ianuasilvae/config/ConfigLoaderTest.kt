@@ -69,4 +69,32 @@ class ConfigLoaderTest {
         val config = ConfigLoader.load(path, mapOf("IANUA_PORT" to "not-a-number"))
         assertEquals(LobbyConfig().port, config.port)
     }
+
+    @Test
+    fun `voidY is used as is without voidDepth`() {
+        val config = LobbyConfig(voidY = 10.0)
+        assertEquals(10.0, config.resolveVoidY(-40.0))
+        assertEquals(10.0, config.resolveVoidY(null))
+    }
+
+    @Test
+    fun `voidDepth derives the void level from the lowest block and the spawn`() {
+        val spawn = Position(0.0, 64.0, 0.0)
+        val config = LobbyConfig(voidY = 1000.0, spawn = spawn, voidDepth = 32.0)
+        // Build pasted below the spawn (copied while standing above it).
+        assertEquals(19.0 - 32.0, config.resolveVoidY(19.0))
+        // Spawn below the build.
+        assertEquals(64.0 - 32.0, config.resolveVoidY(80.0))
+        // No schematic: relative to the spawn only.
+        assertEquals(64.0 - 32.0, config.resolveVoidY(null))
+    }
+
+    @Test
+    fun `voidDepth is read from the config file`() {
+        val path = tempDir.resolve("config.json")
+        Files.writeString(path, """{ "voidDepth": 32.0 }""")
+        assertEquals(32.0, ConfigLoader.load(path, emptyMap()).voidDepth)
+        Files.writeString(path, """{ }""")
+        assertNull(ConfigLoader.load(path, emptyMap()).voidDepth)
+    }
 }

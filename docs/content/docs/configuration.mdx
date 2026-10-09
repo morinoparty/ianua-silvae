@@ -17,6 +17,7 @@ Configuration is read from `config/config.json` (relative to the working directo
 | `schematicOrigin`  | —                       | `{0, 64, 0}`                     | World position the schematic is pasted at            |
 | `spawn`            | —                       | `{0.5, 65, 0.5}`                 | Player spawn position                                |
 | `voidY`            | —                       | `-32`                            | Y level below which players are teleported to spawn  |
+| `voidDepth`        | —                       | *(null)*                         | Derive the void level from the pasted schematic instead of `voidY` |
 | `motd.description` | `IANUA_MOTD`            | `morino.party \| fallback lobby` | Server list MOTD text                                |
 | `motd.maxPlayers`  | —                       | `200`                            | Max player count shown in the server list            |
 
@@ -59,6 +60,14 @@ Path (absolute or relative to the working directory) of the Sponge-format schema
 ### spawn
 
 An object with `x`, `y`, `z` and optional `yaw`/`pitch`. Coordinates are in the instance's coordinate space, i.e. relative to where the schematic was pasted. Pick a position on solid ground inside the schematic; this is also where players are teleported back to when they fall below `voidY`.
+
+### voidY and voidDepth
+
+Players whose Y drops below the void level are teleported back to `spawn`. By default that level is the fixed `voidY`.
+
+When `voidDepth` is set, `voidY` is ignored and the level is computed at startup, after the schematic is read: `min(lowest pasted block Y, spawn.y) - voidDepth`. Sponge schematics carry their own offset (where the region sat relative to the `//copy` position), so the pasted blocks can start well below `schematicOrigin`. A fixed `voidY` derived from the origin alone can then end up above the build, trapping players in a teleport loop. Use `voidDepth` whenever the config is generated without inspecting the schematic. Without a schematic, the level is `spawn.y - voidDepth`.
+
+Blocks below the dimension's minimum Y (-64 in the overworld) are dropped, and a warning is logged.
 
 ### motd
 
