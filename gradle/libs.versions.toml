@@ -1,5 +1,5 @@
 [versions]
-kotlin = "2.4.20"
+kotlin = "2.4.21"
 # Minecraft 26.3 (protocol 777). Minestom has no 26.3 release yet, so this pins a timestamped
 # build of the 26_3 branch from the Maven Central snapshot repository. Switch back to a release
 # (e.g. "YYYY.MM.DD-26.3") once one is published.
