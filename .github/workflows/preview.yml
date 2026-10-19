@@ -162,6 +162,9 @@ jobs:
   # S3 upload job (JARs, docs, and reports)
   upload-s3:
     needs: [setup, build-gradle, build-docs]
+    # Dependabot's PRs do not receive Actions secrets, so the Bitwarden token is unavailable. Skip the upload
+    # (the comment job, which needs upload-s3, is skipped along with it).
+    if: ${{ github.actor != 'dependabot[bot]' }}
     runs-on: ubuntu-latest
     env:
       COMMIT_SHORT_SHA: ${{ needs.setup.outputs.commit_sha }}
