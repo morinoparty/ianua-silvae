@@ -11,13 +11,15 @@ permissions:
   attestations: write
 
 env:
+  AWS_ACCESS_KEY_ID: ${{ secrets.MORINOPARTY_CI_AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.MORINOPARTY_CI_AWS_SECRET_ACCESS_KEY }}
   AWS_EC2_METADATA_DISABLED: true
-  AWS_REGION: auto
+  AWS_REGION: ${{ secrets.MORINOPARTY_CI_AWS_REGION }}
   AWS_CLI_FILE_ENCODING: UTF-8
   AWS_DEFAULT_S3_SIGNATURE_VERSION: s3v4
-  S3_UPLOAD_BUCKET: ${{ secrets.S3_UPLOAD_BUCKET }}
-  S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
-  PREVIEW_BASE_URL: https://moripa-ci.nikomaru.dev/ianua-silvae
+  S3_UPLOAD_BUCKET: ${{ secrets.MORINOPARTY_CI_S3_UPLOAD_BUCKET }}
+  S3_ENDPOINT: ${{ secrets.MORINOPARTY_CI_S3_ENDPOINT }}
+  S3_PUBLIC_URL: ${{ secrets.MORINOPARTY_CI_S3_PUBLIC_URL }}
   PROJECT_NAME: ianua-silvae
 
 jobs:
@@ -179,30 +181,51 @@ jobs:
           mkdir -p ./upload/docs
           mv ./artifacts/docs-artifacts/* ./upload/docs/
 
-      # Fetch AWS credentials for the S3 upload from Bitwarden Secrets Manager
-      - name: Fetch secrets from Bitwarden Secrets Manager
-        uses: bitwarden/sm-action@v2
-        with:
-          access_token: ${{ secrets.NIKOMARU_BITWARDEN_SECRET_MANAGER_ACCESS_TOKEN }}
-          secrets: |
-            37e4d53a-a898-4e9f-b067-b49900deaf4f > AWS_ACCESS_KEY_ID
-            4d92b739-40fc-467f-97fa-b49900deb52c > AWS_SECRET_ACCESS_KEY
+      # Install the latest rclone release (apt's 1.60 hits frequent NotImplemented errors against R2).
+      # The binary is cached by the action, and Dependabot keeps the action itself up to date
+      - uses: AnimMouse/setup-rclone@26ef2133e09fd383329a1d4c1fbe6a71db1976c9 # v1.12.0
 
-      - name: Upload to S3 (parallel)
+      # aws s3 cp is slow per file and --only-show-errors hides progress, so upload with rclone instead.
+      # rclone reuses connections in a single process with high parallelism and logs progress every 5 seconds
+      - name: Upload to S3
+        env:
+          RCLONE_CONFIG_S3_TYPE: s3
+          RCLONE_CONFIG_S3_PROVIDER: Cloudflare
+          RCLONE_CONFIG_S3_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_S3_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_S3_REGION: ${{ env.AWS_REGION }}
+          RCLONE_CONFIG_S3_ENDPOINT: ${{ env.S3_ENDPOINT }}
+          RCLONE_CONFIG_S3_NO_CHECK_BUCKET: "true"
         run: |
-          # Increase the AWS CLI parallel request limit
-          aws configure set default.s3.max_concurrent_requests 50
+          # Stop if a secret is empty; otherwise we would upload to the wrong key or post broken URLs in the PR comment
+          for name in AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_REGION S3_ENDPOINT S3_UPLOAD_BUCKET S3_PUBLIC_URL; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name is empty (check the MORINOPARTY_CI_* organization secrets)"
+              exit 1
+            fi
+          done
 
-          S3_BASE="s3://${{ env.S3_UPLOAD_BUCKET }}/ianua-silvae/${{ env.COMMIT_SHORT_SHA }}"
-          S3_OPTS="--endpoint-url ${S3_ENDPOINT} --only-show-errors"
+          # Export so the sh spawned by xargs can read it
+          export PREFIX="${PROJECT_NAME}/${COMMIT_SHORT_SHA}"
 
-          # Upload JARs, docs, and reports in parallel
-          aws s3 cp ./upload/jars $S3_BASE/jars $S3_OPTS --recursive &
-          aws s3 cp ./upload/junit $S3_BASE/junit $S3_OPTS --recursive &
-          aws s3 cp ./upload/docs $S3_BASE/docs $S3_OPTS --recursive &
+          # Upload JARs, docs, and reports in a single process
+          rclone copy ./upload "s3:${S3_UPLOAD_BUCKET}/${PREFIX}" \
+            --transfers=32 --checkers=32 --stats=5s --stats-one-line -v
 
-          # Wait for all parallel uploads to finish
-          wait
+          # The public domain does not resolve index.html for directory URLs.
+          # Docs links use trailing slashes (trailingSlash: true), so also store each index.html
+          # under the trailing-slash key so links and directly opened URLs do not 404
+          find ./upload/docs -name index.html -print0 \
+            | xargs -0 -P 16 -I {} sh -c '
+                relative="${1#./upload/docs/}"
+                aws s3api put-object \
+                  --bucket "$S3_UPLOAD_BUCKET" \
+                  --key "$PREFIX/docs/${relative%index.html}" \
+                  --body "$1" \
+                  --content-type "text/html; charset=utf-8" \
+                  --endpoint-url "$S3_ENDPOINT" > /dev/null
+              ' _ {}
+
           echo "S3 upload completed"
 
   # PR comment job
@@ -223,9 +246,9 @@ jobs:
 
       - name: Create comment file
         env:
-          JAR_BASE_URL: "${{ env.PREVIEW_BASE_URL }}/${{ env.COMMIT_SHORT_SHA }}/jars"
-          JUNIT_REPORT_URL: "${{ env.PREVIEW_BASE_URL }}/${{ env.COMMIT_SHORT_SHA }}/junit/index.html"
-          DOCS_PREVIEW_URL: "${{ env.PREVIEW_BASE_URL }}/${{ env.COMMIT_SHORT_SHA }}/docs/index.html"
+          JAR_BASE_URL: "${{ env.S3_PUBLIC_URL }}/${{ env.PROJECT_NAME }}/${{ env.COMMIT_SHORT_SHA }}/jars"
+          JUNIT_REPORT_URL: "${{ env.S3_PUBLIC_URL }}/${{ env.PROJECT_NAME }}/${{ env.COMMIT_SHORT_SHA }}/junit/index.html"
+          DOCS_PREVIEW_URL: "${{ env.S3_PUBLIC_URL }}/${{ env.PROJECT_NAME }}/${{ env.COMMIT_SHORT_SHA }}/docs/index.html"
           ATTESTATION_URL: "${{ needs.build-gradle.outputs.attestation_url }}"
           LIMIT_TIME: ${{ env.LIMIT_TIME }}
         run: |
