@@ -11,8 +11,6 @@ permissions:
   attestations: write
 
 env:
-  AWS_ACCESS_KEY_ID: ${{ secrets.MORINOPARTY_CI_AWS_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY: ${{ secrets.MORINOPARTY_CI_AWS_SECRET_ACCESS_KEY }}
   AWS_EC2_METADATA_DISABLED: true
   AWS_REGION: ${{ secrets.MORINOPARTY_CI_AWS_REGION }}
   AWS_CLI_FILE_ENCODING: UTF-8
@@ -167,6 +165,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       COMMIT_SHORT_SHA: ${{ needs.setup.outputs.commit_sha }}
+      # Credentials are scoped to this job only so the build jobs (gradlew, pnpm) never see them
+      AWS_ACCESS_KEY_ID: ${{ secrets.MORINOPARTY_CI_AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.MORINOPARTY_CI_AWS_SECRET_ACCESS_KEY }}
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
