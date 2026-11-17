@@ -5,7 +5,7 @@ kotlin = "2.4.21"
 # (e.g. "YYYY.MM.DD-26.3") once one is published.
 minestom = "26_3-20261007.224755-10"
 schem = "2.0.1"
-serialization = "1.12.0"
+serialization = "1.13.0"
 logback = "1.6.6"
 junit = "6.1.3"
 ktlint = "14.2.0"
